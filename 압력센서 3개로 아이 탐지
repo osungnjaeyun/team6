@@ -1,0 +1,44 @@
+// 아날로그 입력 핀 설정
+const int sensorPin1 = A0;  // 센서 1: 엉덩이 아래
+const int sensorPin2 = A1;  // 센서 2: 허벅지 아래
+const int sensorPin3 = A2;  // 센서 3: 등받이
+
+// 압력 감지 임계값 (약 1kg 기준, 기준값은 임의로 설정)
+const int threshold = 450;
+
+void setup() {
+  Serial.begin(9600); 
+}
+
+void loop() {
+
+  int value1 = analogRead(sensorPin1);
+  int value2 = analogRead(sensorPin2);
+  int value3 = analogRead(sensorPin3);
+
+  // 센서값 출력
+  Serial.print("센서1: "); Serial.print(value1);
+  Serial.print("  센서2: "); Serial.print(value2);
+  Serial.print("  센서3: "); Serial.println(value3);
+
+  // 감지된 센서 수 세기
+  int detectedCount = 0;
+  if (value1 >= threshold) detectedCount++;
+  if (value2 >= threshold) detectedCount++;
+  if (value3 >= threshold) detectedCount++;
+
+  // 다수결로 아이 존재 여부 판단 -> 3개 센서 중 2개 이상에서 탐지되면 아이 있다고 판단
+  if (detectedCount >= 2) {
+    Serial.println("✅ 아이가 카시트에 있습니다!");
+  } else {
+    Serial.println("❌ 아이가 없습니다.");
+  }
+
+  delay(1000);  // 1초마다 측정
+}
+
+
+// 센서 회로 연결
+// 센서1 : 5V → 센서 → A0 → 10kΩ → GND 
+// 센서2 : 5V → 센서 → A1 → 10kΩ → GND 
+// 센서3 : 5V → 센서 → A2 → 10kΩ → GND 

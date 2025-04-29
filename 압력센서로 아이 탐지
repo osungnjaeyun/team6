@@ -1,0 +1,29 @@
+// 압력 센서 연결 핀
+const int pressureSensorPin = A0;
+
+// 압력 임계값 설정 (대략적인 임계값임. 영유아 무게 고려해서 다시 설정해야할 듯)
+const int threshold = 450;
+
+void setup() {
+  Serial.begin(9600); 
+}
+
+void loop() {
+  int pressureValue = analogRead(pressureSensorPin);
+  
+  Serial.print("압력 센서 값: ");
+  Serial.println(pressureValue);
+
+  // 임계값 이상이면 아이가 있다고 판단
+  if (pressureValue >= threshold) {
+    Serial.println("Child Detected! 아이가 있습니다.");
+  } 
+  else {
+    Serial.println("No Child Detected! 아이가 없습니다.");
+  }
+
+  delay(1000); // 1초마다 센서값 체크
+}
+
+// 압력센서->A0, 5V 연결
+// 10k옴 저항 A0, GND 연결

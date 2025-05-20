@@ -1,0 +1,63 @@
+#include <WiFi.h>
+#include <FirebaseESP32.h>
+
+#define WIFI_SSID "mooniphone"
+#define WIFI_PASSWORD "12345678"
+
+#define FIREBASE_HOST "https://alarmsystem-54014-default-rtdb.firebaseio.com/"
+#define FIREBASE_AUTH "your_database_secret_or_web_api_key"//web api 키 수정 예정
+
+// Firebase 객체 선언
+FirebaseData fbdo;
+
+const int sensorPin1 = A0;
+const int sensorPin2 = A1;
+const int sensorPin3 = A2;
+
+const int threshold = 450;
+
+void setup() {
+  Serial.begin(9600);
+
+  WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
+  Serial.print("Connecting to Wi-Fi");
+  while (WiFi.status() != WL_CONNECTED) {
+    delay(500);
+    Serial.print(".");
+  }
+  Serial.println("\nWiFi connected");
+
+  Firebase.begin(FIREBASE_HOST, FIREBASE_AUTH);
+  Firebase.reconnectWiFi(true);
+}
+
+void loop() {
+  int value1 = analogRead(sensorPin1);
+  int value2 = analogRead(sensorPin2);
+  int value3 = analogRead(sensorPin3);
+
+  Serial.print("센서1: "); Serial.print(value1);
+  Serial.print("  센서2: "); Serial.print(value2);
+  Serial.print("  센서3: "); Serial.println(value3);
+
+  int detectedCount = 0;
+  if (value1 >= threshold) detectedCount++;
+  if (value2 >= threshold) detectedCount++;
+  if (value3 >= threshold) detectedCount++;
+
+  bool babyDetected = (detectedCount >= 2);
+
+  if (babyDetected) {
+    Serial.println("O 아이가 카시트에 있습니다!");
+  } else {
+    Serial.println("X 아이가 없습니다.");
+  }
+
+  // Firebase에 전송
+  Firebase.setInt(fbdo, "/carseat/sensor1", value1);
+  Firebase.setInt(fbdo, "/carseat/sensor2", value2);
+  Firebase.setInt(fbdo, "/carseat/sensor3", value3);
+  Firebase.setBool(fbdo, "/carseat/babyDetected", babyDetected);
+
+  delay(1000);
+}

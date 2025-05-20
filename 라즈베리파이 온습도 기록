@@ -1,0 +1,39 @@
+Python 3.13.2 (tags/v3.13.2:4f8bb39, Feb  4 2025, 15:23:48) [MSC v.1942 64 bit (AMD64)] on win32
+Type "help", "copyright", "credits" or "license()" for more information.
+import pyrebase
+import csv
+import time
+from datetime import datetime
+
+# Firebase 설정
+config = {
+    "apiKey": "AIzaSyDeExG4XuN79pTqSgi8-2W1x8RJTYV6WJE",
+    "authDomain": "alarmsystem-54014.firebaseapp.com",
+    "databaseURL": "https://alarmsystem-54014-default-rtdb.firebaseio.com/",
+    "storageBucket": "alarmsystem-54014.firebasestorage.app"
+}
+
+firebase = pyrebase.initialize_app(config)
+db = firebase.database()
+
+# CSV 파일 초기화
+filename = "dht_log.csv"
+with open(filename, mode='w', newline='') as file:
+    writer = csv.writer(file)
+    writer.writerow(["Timestamp", "Temperature", "Humidity"])
+
+# 주기적으로 Firebase에서 데이터 가져와 CSV에 기록
+while True:
+    data = db.child("dht").get()
+    temp = data.val().get("temperature")
+    humi = data.val().get("humidity")
+    now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+    print(f"[{now}] Temp: {temp}°C, Humi: {humi}%")
+
+    # 파일에 저장
+    with open(filename, mode='a', newline='') as file:
+        writer = csv.writer(file)
+        writer.writerow([now, temp, humi])
+
+    time.sleep(60)  # 1분 간격으로 저장

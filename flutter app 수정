@@ -1,0 +1,177 @@
+import 'package:flutter/material.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_database/firebase_database.dart';
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'firebase_options.dart';
+
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await Firebase.initializeApp(
+    options: DefaultFirebaseOptions.currentPlatform,
+  );
+  runApp(MyApp());
+}
+
+class MyApp extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      title: '카시트 온도 제어 앱',
+      theme: ThemeData(primarySwatch: Colors.blue),
+      home: TempMonitorPage(),
+    );
+  }
+}
+
+class TempMonitorPage extends StatefulWidget {
+  @override
+  _TempMonitorPageState createState() => _TempMonitorPageState();
+}
+
+class _TempMonitorPageState extends State<TempMonitorPage> {
+  final dbRef = FirebaseDatabase.instance.ref();
+  final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
+  FlutterLocalNotificationsPlugin();
+
+  double temperature = 0.0;
+  final double threshold = 30.0;
+  bool isWarning = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _initNotifications();
+
+    dbRef.child('status/temperature').onValue.listen((event) {
+      final value = event.snapshot.value;
+      setState(() {
+        temperature = double.tryParse(value.toString()) ?? 0.0;
+      });
+
+      if (temperature > threshold) {
+        dbRef.child('status/warning').set(true);
+        if (!isWarning) {
+          _showWarningNotification(); // 경고 알림
+        }
+        setState(() {
+          isWarning = true;
+        });
+      } else {
+        dbRef.child('status/warning').set(false);
+        setState(() {
+          isWarning = false;
+        });
+      }
+    });
+  }
+
+  Future<void> _initNotifications() async {
+    const AndroidInitializationSettings androidSettings =
+    AndroidInitializationSettings('@mipmap/ic_launcher');
+
+    const InitializationSettings initSettings =
+    InitializationSettings(android: androidSettings);
+
+    await flutterLocalNotificationsPlugin.initialize(initSettings);
+  }
+
+  Future<void> _showWarningNotification() async {
+    const AndroidNotificationDetails androidDetails = AndroidNotificationDetails(
+      'high_temp_channel',
+      'High Temp Alerts',
+      channelDescription: 'Warns when temperature exceeds threshold',
+      importance: Importance.high,
+      priority: Priority.high,
+      enableVibration: true,
+      playSound: true,
+    );
+
+    const NotificationDetails details = NotificationDetails(android: androidDetails);
+
+    await flutterLocalNotificationsPlugin.show(
+      0,
+      '🚨 온도 경고!',
+      '현재 온도가 ${temperature.toStringAsFixed(1)} °C로 위험 수준입니다.',
+      details,
+    );
+  }
+
+  Future<void> _showActionNotification(String title, String body) async {
+    const AndroidNotificationDetails androidDetails = AndroidNotificationDetails(
+      'action_channel',
+      'Peltier Action Alerts',
+      channelDescription: 'Shows ON/OFF control alerts',
+      importance: Importance.high,
+      priority: Priority.high,
+      enableVibration: true,
+      playSound: true,
+      ongoing: true,
+      autoCancel: false,
+      visibility: NotificationVisibility.public,
+    );
+
+    const NotificationDetails details = NotificationDetails(android: androidDetails);
+
+    await flutterLocalNotificationsPlugin.show(
+      1,
+      title,
+      body,
+      details,
+    );
+  }
+
+  void _turnPeltierOn() {
+    dbRef.child('status/peltier').set('on');
+    _showActionNotification('Peltier 작동 시작', '온도 조절 시스템이 켜졌습니다!');
+  }
+
+  void _turnPeltierOff() {
+    dbRef.child('status/peltier').set('off');
+    _showActionNotification('Peltier 작동 중지', '온도 조절 시스템이 꺼졌습니다.');
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: Text('Peltier Controller')),
+      body: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Text(
+              '현재 온도: ${temperature.toStringAsFixed(1)} °C',
+              style: TextStyle(fontSize: 30),
+            ),
+            SizedBox(height: 20),
+            isWarning
+                ? Text(
+              '🔥 경고: 온도 초과!',
+              style: TextStyle(color: Colors.red, fontSize: 24),
+            )
+                : Text(
+              '✅ 안전 온도입니다.',
+              style: TextStyle(color: Colors.green, fontSize: 24),
+            ),
+            SizedBox(height: 40),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                ElevatedButton(
+                  onPressed: _turnPeltierOn,
+                  style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+                  child: Text('ON'),
+                ),
+                SizedBox(width: 20),
+                ElevatedButton(
+                  onPressed: _turnPeltierOff,
+                  style: ElevatedButton.styleFrom(backgroundColor: Colors.grey),
+                  child: Text('OFF'),
+                ),
+              ],
+            )
+          ],
+        ),
+      ),
+    );
+  }
+}
